@@ -10,3 +10,7 @@ instalation ffmpeg (required before you used vinjector):
 <pre>
   $ apt install ffmpeg
 </pre>
+
+# supported platform
+1. Termux (android)
+2. Linux
