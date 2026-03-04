@@ -1,0 +1,152 @@
+import os
+import sys
+import subprocess
+import math
+import time
+import glob
+import argparse
+from pathlib import Path
+
+# Hacker Palette (Red, Blue, White Focus)
+R = "\033[31m"      # Red
+B = "\033[34m"      # Blue
+W = "\033[37m"      # White
+BOLD = "\033[1m"
+RESET = "\033[0m"
+
+class Vinjector:
+    def __init__(self, args):
+        self.args = args
+        self.ffmpeg_path = "ffmpeg"
+        self.ffprobe_path = "ffprobe"
+
+    def log(self, tag, msg, color):
+        print(f"{W}[{color}{BOLD}{tag}{RESET}{W}] {msg}{RESET}")
+
+    def get_video_duration(self, path):
+        try:
+            cmd = [
+                self.ffprobe_path, "-v", "error", "-show_entries",
+                "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path
+            ]
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            return float(result.stdout.strip())
+        except:
+            return 0.0
+
+    def show_syringe_banner(self):
+        banner = [
+            f"{R}{BOLD}     💉 VINJECTOR v2.6.9-RETA [codename: fixed]{RESET}",
+            f"{W}                _________________________________________",
+            f"{W}   _____________/                                         {B}\\",
+            f"{R}   [############{W}             {B}  BY: M. QUWAIS SAPUTRA   {B} |---{RESET}",
+            f"{W}   ¯¯¯¯¯¯¯¯¯¯¯¯¯\\________________________________________/{RESET}",
+            ""
+        ]
+        for line in banner:
+            print(line)
+            time.sleep(0.03)
+
+    def execute(self):
+        if not os.path.exists(self.args.p):
+            self.log("ERR", "Target video not found!", R)
+            return
+
+        total_dur = self.get_video_duration(self.args.p)
+        if total_dur == 0:
+            self.log("ERR", "FFmpeg failed to read metadata!", R)
+            return
+
+        est_frags = math.ceil(total_dur / self.args.d)
+        self.log("SYS", f"Source: {os.path.basename(self.args.p)}", B)
+        self.log("SYS", f"Duration: {int(total_dur)}s | Sectors: {est_frags}", B)
+
+        if self.args.m > 0:
+            self.log("INF", f"Min Size Guard: {self.args.m:.2f} MB", W)
+        
+        print(R + "—" * 50 + RESET)
+
+        if not os.path.exists(self.args.o):
+            os.makedirs(self.args.o)
+
+        self.log("EXEC", "Fragmenting binary stream...", B)
+        
+        # Segmenting
+        split_cmd = [
+            self.ffmpeg_path, "-v", "error", "-i", self.args.p,
+            "-f", "segment", "-segment_time", str(self.args.d),
+            "-c", "copy", "-reset_timestamps", "1", "chunk_%03d.mp4", "-y"
+        ]
+        subprocess.run(split_cmd)
+
+        matches = sorted(glob.glob("chunk_*.mp4"))
+        total_start = time.time()
+
+        for i, frag in enumerate(matches):
+            output_file = os.path.join(self.args.o, f"payload_{i+1}.mp4")
+            
+            eta_str = ""
+            if i > 0:
+                elapsed = time.time() - total_start
+                remaining = (elapsed / i) * (len(matches) - i)
+                eta_str = f" | ETA: {int(remaining)}s"
+
+            sys.stdout.write(f"\r{W}[{R}LOADING {i+1}/{len(matches)}{W}]{B}{eta_str}{RESET}")
+            sys.stdout.flush()
+
+            # Filter Complex for Injection
+            v_filter = (
+                "[0:v]scale=-2:400,pad=720:480:(720-iw)/2:40,setsar=1[m];"
+                "[1:v]scale=720:40[t];[2:v]scale=720:40[b];"
+                "[3:v]scale=100:-1,format=rgba,colorchannelmixer=aa=0.8[l];"
+                "[m][t]overlay=0:0:shortest=1[v1];[v1][b]overlay=0:H-h:shortest=1[v2];[v2][l]overlay=20:50"
+            )
+
+            render_cmd = [
+                self.ffmpeg_path, "-v", "error", "-i", frag,
+                "-ignore_loop", "0", "-i", self.args.f, 
+                "-ignore_loop", "0", "-i", self.args.f,
+                "-i", self.args.i, "-filter_complex", v_filter, 
+                "-map", "0:a?", "-c:v", "libx264",
+                "-b:v", "600k", "-preset", "superfast", "-shortest", output_file, "-y"
+            ]
+
+            subprocess.run(render_cmd)
+            os.remove(frag)
+
+            # File Size Filter
+            if self.args.m > 0:
+                if os.path.exists(output_file):
+                    size_mb = os.path.getsize(output_file) / (1024 * 1024)
+                    if size_mb < self.args.m:
+                        os.remove(output_file)
+
+        print(f"\n\n{R}{BOLD}[COMPLETE] PAYLOAD DEPLOYED TO /{self.args.o}{RESET}")
+        
+        if self.args.x:
+            os.remove(self.args.p)
+            self.log("SYS", "Source wiped from disk.", R)
+
+def main():
+    parser = argparse.ArgumentParser(description="VINJECTOR v2.6.7-PY")
+    parser.add_argument("-p", type=str, required=True, help="Target video path")
+    parser.add_argument("-f", type=str, required=True, help="Overlay GIF path")
+    parser.add_argument("-i", type=str, required=True, help="PNG Icon path")
+    parser.add_argument("-d", type=int, required=True, help="Split duration (sec)")
+    parser.add_argument("-x", action="store_true", help="Wipe source after injection")
+    parser.add_argument("-o", type=str, default="injected_outputs", help="Output directory")
+    parser.add_argument("-m", type=float, default=0, help="Auto-delete if size < MB")
+
+    if len(sys.argv) == 1:
+        print(f"{BOLD}{R}VINJECTOR v2.6.9-RETA{RESET}")
+        print("Usage: python vinjector.py -p <vid> -f <gif> -i <png> -d <sec> [-m 8.0] [-x]")
+        return
+
+    args = parser.parse_args()
+    
+    app = Vinjector(args)
+    app.show_syringe_banner()
+    app.execute()
+
+if __name__ == "__main__":
+    main()
