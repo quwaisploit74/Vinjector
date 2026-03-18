@@ -148,16 +148,6 @@ def main():
     app = Vinjector(args)
     app.show_syringe_banner()
     app.execute()
-    while True:
-        input("\033[33m[?] \033[37mshow links [press enter to show links....")
-        subprocess.call("./scrap",shell=True)
-        i=input("\033[33m[?] \033[37mdeleted 'injected_ouputs' directory [y/n]  ")
-        if i=="y":
-            subprocess.call("rm -rf injected_outputs",shell=True)
-            sys.exit()
-        else:
-            pass
-            sys.exit()
 
 if __name__ == "__main__":
     main()
