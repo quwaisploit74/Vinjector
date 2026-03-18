@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import os
 import sys
 import subprocess
@@ -36,11 +37,11 @@ class Vinjector:
 
     def show_syringe_banner(self):
         banner = [
-            f"{R}{BOLD}     💉 VINJECTOR v2.6.9-RETA [codename: fixed]{RESET}",
+            f"{R}{BOLD}     💉 VINJECTOR v2.7.0-ABSOLUTE [codename: BLACKHAT LIST]{RESET}",
             f"{W}                _________________________________________",
             f"{W}   _____________/                                         {B}\\",
             f"{R}   [############{W}             {B}  BY: M. QUWAIS SAPUTRA   {B} |---{RESET}",
-            f"{W}   ¯¯¯¯¯¯¯¯¯¯¯¯¯\\________________________________________/{RESET}",
+            f"{W}   ¯¯¯¯¯¯¯¯¯¯¯¯¯\\_________________________________________/{RESET}",
             ""
         ]
         for line in banner:
@@ -147,6 +148,16 @@ def main():
     app = Vinjector(args)
     app.show_syringe_banner()
     app.execute()
+    while True:
+        input("\033[33m[?] \033[37mshow links [press enter to show links....")
+        subprocess.call("./scrap",shell=True)
+        i=input("\033[33m[?] \033[37mdeleted 'injected_ouputs' directory [y/n]  ")
+        if i=="y":
+            subprocess.call("rm -rf injected_outputs",shell=True)
+            sys.exit()
+        else:
+            pass
+            sys.exit()
 
 if __name__ == "__main__":
     main()
